@@ -16,11 +16,12 @@ import steam
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 SALON = "bot-09"
+EN_FIL = {"conseil", "alerte", "mes-alertes", "stop"}
 
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 
 @bot.check
@@ -29,6 +30,10 @@ async def uniquement_dans_le_salon(ctx):
 
 
 async def repondre(ctx, *args, **kwargs):
+    if ctx.command is None or ctx.command.name not in EN_FIL:
+        await ctx.reply(*args, mention_author=False, **kwargs)
+        return
+
     fil = getattr(ctx, "fil", None)
     if fil is None:
         try:
@@ -66,6 +71,26 @@ async def on_command_error(ctx, erreur):
 @bot.command()
 async def ping(ctx):
     await repondre(ctx,"pong")
+
+
+@bot.command()
+async def aide(ctx):
+    encart = discord.Embed(
+        title="Commandes de Bon Plan Gamer",
+        description="\n".join(
+            [
+                "`!promo hades` · prix actuel d'un jeu sur Steam",
+                "`!promos` · promotions Steam du moment",
+                "`!gratuit` · jeux offerts sur PC",
+                "`!alerte hades 10` · me prévenir quand le jeu passe à 10 € ou moins",
+                "`!mes-alertes` · voir mes alertes",
+                "`!stop 3` · supprimer l'alerte n°3",
+                "`!conseil un jeu calme à moins de 10 €` · demander une recommandation",
+            ]
+        ),
+        color=discord.Color.blurple(),
+    )
+    await repondre(ctx, embed=encart)
 
 
 @bot.command()
