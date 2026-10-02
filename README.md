@@ -10,7 +10,7 @@ Le bot ne répond que dans le salon `bot-09`.
 
 | Commande | Effet | Réponse |
 |---|---|---|
-| `!promo hades` | Prix actuel d'un jeu sur Steam, avec la réduction s'il y en a une | salon |
+| `!promo hades` | Prix actuel d'un jeu sur Steam, comparaison avec les autres magasins et plus bas prix historique | salon |
 | `!promos` | Promotions Steam du moment, triées par réduction | salon |
 | `!gratuit` | Jeux offerts en ce moment sur PC | salon |
 | `!aide` | Liste des commandes | salon |
@@ -37,6 +37,7 @@ Remplir ensuite `.env` :
 |---|---|
 | `DISCORD_TOKEN` | Portail développeur Discord, onglet Bot |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `ITAD_API_KEY` | [IsThereAnyDeal](https://isthereanydeal.com/apps/my/), en enregistrant une application |
 
 Le fichier `.env` contient des secrets : il est ignoré par git et ne doit pas être partagé.
 
@@ -61,7 +62,7 @@ Les commandes ci-dessous se lancent depuis le dossier du projet. `serveur` dési
 
 ```powershell
 ssh serveur 'mkdir -p /root/bons-plans-gamer-bot'
-scp bot.py steam.py gratuits.py alertes.py conseil.py requirements.txt .env serveur:/root/bons-plans-gamer-bot/
+scp bot.py steam.py gratuits.py alertes.py conseil.py itad.py requirements.txt .env serveur:/root/bons-plans-gamer-bot/
 ssh serveur 'cd /root/bons-plans-gamer-bot && chmod 600 .env && python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt'
 scp bons-plans-gamer.service serveur:/etc/systemd/system/
 ssh serveur 'systemctl daemon-reload && systemctl enable --now bons-plans-gamer'
@@ -84,6 +85,7 @@ Le bot ne doit tourner qu'à un seul endroit à la fois : lancé en local pendan
 | `gratuits.py` | Appel à l'API GamerPower pour les jeux offerts |
 | `alertes.py` | Stockage des alertes dans une base SQLite (`alertes.db`, créée au premier lancement) |
 | `conseil.py` | Appel à Gemini pour la recommandation |
+| `itad.py` | Appel à l'API IsThereAnyDeal : prix d'un jeu dans les autres magasins et plus bas historique |
 
 ### Alertes
 
@@ -95,7 +97,7 @@ Un LLM ne connaît pas les prix du jour et peut en inventer. Le bot récupère d
 
 ## Limites
 
-- Les prix viennent de Steam uniquement, en euros (magasin français).
+- Seul `!promo` compare les magasins. Les promotions, les alertes et le conseil s'appuient sur les prix Steam, en euros (magasin français).
 - `!promo` et `!alerte` retiennent le premier résultat de la recherche Steam : `!promo hades` peut renvoyer Hades II.
 - `!conseil` choisit parmi les promotions mises en avant par Steam et les jeux offerts, pas dans tout le catalogue.
 - Le salon est reconnu par son nom : un salon renommé n'est plus écouté.

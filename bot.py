@@ -11,6 +11,7 @@ from google.genai import errors as erreurs_gemini
 import alertes
 import conseil
 import gratuits
+import itad
 import steam
 
 load_dotenv()
@@ -128,7 +129,25 @@ async def promo(ctx, *, nom):
         encart.add_field(name="Réduction", value=f"-{reduction} %")
     else:
         encart.description = "Pas de promotion en ce moment."
-    encart.set_footer(text="Source : Steam")
+    try:
+        comparaison = await asyncio.to_thread(itad.comparer, jeu["id"])
+    except (requests.RequestException, KeyError, ValueError) as erreur:
+        print(f"Comparaison ITAD impossible : {erreur!r}")
+        comparaison = None
+
+    if comparaison and comparaison["offres"]:
+        lignes = []
+        for offre in comparaison["offres"][:5]:
+            ligne = f"[{offre['shop']['name']}]({offre['url']}) · {offre['price']['amount']:.2f} €"
+            if offre["cut"]:
+                ligne += f" (-{offre['cut']} %)"
+            lignes.append(ligne)
+        encart.add_field(name="Comparaison des magasins", value="\n".join(lignes), inline=False)
+        if comparaison["plus_bas"]:
+            encart.add_field(
+                name="Plus bas historique", value=f"{comparaison['plus_bas']['amount']:.2f} €"
+            )
+    encart.set_footer(text="Sources : Steam, IsThereAnyDeal")
     await repondre(ctx,embed=encart)
 
 
