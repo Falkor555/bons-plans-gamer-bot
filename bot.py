@@ -6,8 +6,10 @@ import discord
 import requests
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
+from google.genai import errors as erreurs_gemini
 
 import alertes
+import conseil
 import gratuits
 import steam
 
@@ -26,6 +28,20 @@ async def uniquement_dans_le_salon(ctx):
     return getattr(ctx.channel, "name", None) == SALON
 
 
+async def repondre(ctx, *args, **kwargs):
+    fil = getattr(ctx, "fil", None)
+    if fil is None:
+        try:
+            fil = await ctx.message.create_thread(
+                name=ctx.message.content[:100], auto_archive_duration=60
+            )
+        except discord.HTTPException as erreur:
+            print(f"Création du fil impossible ({erreur}), réponse dans le salon")
+            fil = ctx.channel
+        ctx.fil = fil
+    await fil.send(*args, **kwargs)
+
+
 @bot.event
 async def on_ready():
     print(f"Connecté en tant que {bot.user}")
@@ -37,19 +53,19 @@ async def on_ready():
 async def on_command_error(ctx, erreur):
     if isinstance(erreur, commands.MissingRequiredArgument):
         exemple = ctx.command.usage or "hades"
-        await ctx.send(f"Il manque une information. Exemple : `!{ctx.command} {exemple}`")
+        await repondre(ctx,f"Il manque une information. Exemple : `!{ctx.command} {exemple}`")
     elif isinstance(erreur, commands.BadArgument):
-        await ctx.send(f"Je n'ai pas compris. Exemple : `!{ctx.command} {ctx.command.usage}`")
+        await repondre(ctx,f"Je n'ai pas compris. Exemple : `!{ctx.command} {ctx.command.usage}`")
     elif isinstance(erreur, (commands.CommandNotFound, commands.CheckFailure)):
         return
     else:
         print(f"Erreur dans !{ctx.command} : {erreur!r}")
-        await ctx.send("Une erreur est survenue, désolé.")
+        await repondre(ctx,"Une erreur est survenue, désolé.")
 
 
 @bot.command()
 async def ping(ctx):
-    await ctx.send("pong")
+    await repondre(ctx,"pong")
 
 
 @bot.command()
@@ -58,16 +74,16 @@ async def promo(ctx, *, nom):
         async with ctx.typing():
             jeu = await asyncio.to_thread(steam.chercher_jeu, nom)
     except (requests.RequestException, KeyError, ValueError):
-        await ctx.send("Steam ne répond pas pour l'instant, réessaie dans un moment.")
+        await repondre(ctx,"Steam ne répond pas pour l'instant, réessaie dans un moment.")
         return
 
     if jeu is None:
-        await ctx.send(f"Je n'ai trouvé aucun jeu pour « {nom} ».")
+        await repondre(ctx,f"Je n'ai trouvé aucun jeu pour « {nom} ».")
         return
 
     prix = jeu.get("price")
     if prix is None:
-        await ctx.send(f"**{jeu['name']}** n'a pas de prix sur Steam (jeu gratuit ou pas encore sorti).")
+        await repondre(ctx,f"**{jeu['name']}** n'a pas de prix sur Steam (jeu gratuit ou pas encore sorti).")
         return
 
     initial = prix["initial"] / 100
@@ -88,7 +104,7 @@ async def promo(ctx, *, nom):
     else:
         encart.description = "Pas de promotion en ce moment."
     encart.set_footer(text="Source : Steam")
-    await ctx.send(embed=encart)
+    await repondre(ctx,embed=encart)
 
 
 @bot.command()
@@ -97,11 +113,11 @@ async def promos(ctx):
         async with ctx.typing():
             jeux = await asyncio.to_thread(steam.promos_du_moment)
     except (requests.RequestException, KeyError, ValueError):
-        await ctx.send("Steam ne répond pas pour l'instant, réessaie dans un moment.")
+        await repondre(ctx,"Steam ne répond pas pour l'instant, réessaie dans un moment.")
         return
 
     if not jeux:
-        await ctx.send("Aucune promotion mise en avant sur Steam pour l'instant.")
+        await repondre(ctx,"Aucune promotion mise en avant sur Steam pour l'instant.")
         return
 
     lignes = []
@@ -120,7 +136,7 @@ async def promos(ctx):
         color=discord.Color.green(),
     )
     encart.set_footer(text="Source : Steam")
-    await ctx.send(embed=encart)
+    await repondre(ctx,embed=encart)
 
 
 def echeance(fin):
@@ -137,11 +153,11 @@ async def gratuit(ctx):
         async with ctx.typing():
             jeux = await asyncio.to_thread(gratuits.jeux_gratuits)
     except (requests.RequestException, ValueError):
-        await ctx.send("Le service des jeux offerts ne répond pas, réessaie dans un moment.")
+        await repondre(ctx,"Le service des jeux offerts ne répond pas, réessaie dans un moment.")
         return
 
     if not jeux:
-        await ctx.send("Aucun jeu offert en ce moment.")
+        await repondre(ctx,"Aucun jeu offert en ce moment.")
         return
 
     lignes = []
@@ -157,7 +173,7 @@ async def gratuit(ctx):
         color=discord.Color.gold(),
     )
     encart.set_footer(text="Source : GamerPower")
-    await ctx.send(embed=encart)
+    await repondre(ctx,embed=encart)
 
 
 @bot.command(usage="hades 10")
@@ -168,26 +184,27 @@ async def alerte(ctx, *, texte):
     except (ValueError, OverflowError):
         prix_cible = 0
     if not nom or prix_cible <= 0:
-        await ctx.send("Format attendu : `!alerte nom du jeu prix`. Exemple : `!alerte hades 10`")
+        await repondre(ctx,"Format attendu : `!alerte nom du jeu prix`. Exemple : `!alerte hades 10`")
         return
 
     try:
         async with ctx.typing():
             jeu = await asyncio.to_thread(steam.chercher_jeu, nom)
     except (requests.RequestException, KeyError, ValueError):
-        await ctx.send("Steam ne répond pas pour l'instant, réessaie dans un moment.")
+        await repondre(ctx,"Steam ne répond pas pour l'instant, réessaie dans un moment.")
         return
 
     if jeu is None:
-        await ctx.send(f"Je n'ai trouvé aucun jeu pour « {nom} ».")
+        await repondre(ctx,f"Je n'ai trouvé aucun jeu pour « {nom} ».")
         return
     if jeu.get("price") is None:
-        await ctx.send(f"**{jeu['name']}** n'a pas de prix sur Steam, impossible de le surveiller.")
+        await repondre(ctx,f"**{jeu['name']}** n'a pas de prix sur Steam, impossible de le surveiller.")
         return
 
     numero = alertes.ajouter(ctx.author.id, jeu["id"], jeu["name"], prix_cible)
     actuel = jeu["price"]["final"] / 100
-    await ctx.send(
+    await repondre(
+        ctx,
         f"Alerte n°{numero} créée : je te préviens en message privé quand **{jeu['name']}** "
         f"passe à {prix_cible / 100:.2f} € ou moins (prix actuel : {actuel:.2f} €)."
     )
@@ -197,7 +214,7 @@ async def alerte(ctx, *, texte):
 async def mes_alertes(ctx):
     liste = alertes.lister(ctx.author.id)
     if not liste:
-        await ctx.send("Tu n'as aucune alerte. Crées-en une avec `!alerte hades 10`.")
+        await repondre(ctx,"Tu n'as aucune alerte. Crées-en une avec `!alerte hades 10`.")
         return
 
     lignes = [
@@ -210,15 +227,44 @@ async def mes_alertes(ctx):
         color=discord.Color.blue(),
     )
     encart.set_footer(text="Pour en supprimer une : !stop numéro")
-    await ctx.send(embed=encart)
+    await repondre(ctx,embed=encart)
 
 
 @bot.command(usage="3")
 async def stop(ctx, numero: int):
     if alertes.supprimer(numero, ctx.author.id):
-        await ctx.send(f"Alerte n°{numero} supprimée.")
+        await repondre(ctx,f"Alerte n°{numero} supprimée.")
     else:
-        await ctx.send(f"Tu n'as pas d'alerte n°{numero}. Vérifie avec `!mes-alertes`.")
+        await repondre(ctx,f"Tu n'as pas d'alerte n°{numero}. Vérifie avec `!mes-alertes`.")
+
+
+@bot.command(name="conseil", usage="un jeu calme à moins de 10 €")
+async def demander_conseil(ctx, *, question):
+    try:
+        async with ctx.typing():
+            promos = await asyncio.to_thread(steam.promos_du_moment)
+            offerts = await asyncio.to_thread(gratuits.jeux_gratuits)
+    except (requests.RequestException, KeyError, ValueError):
+        await repondre(ctx,"Je n'arrive pas à récupérer les bons plans, réessaie dans un moment.")
+        return
+
+    lignes = ["Promotions Steam :"]
+    for jeu in promos[:20]:
+        lignes.append(
+            f"- {jeu['name']} : {jeu['final_price'] / 100:.2f} € (-{jeu['discount_percent']} %)"
+        )
+    lignes.append("Jeux offerts :")
+    for jeu in offerts[:10]:
+        lignes.append(f"- {jeu['title'].removesuffix(' Giveaway')} ({jeu['platforms']})")
+
+    try:
+        async with ctx.typing():
+            reponse = await asyncio.to_thread(conseil.conseiller, question, "\n".join(lignes))
+    except erreurs_gemini.APIError:
+        await repondre(ctx,"Le conseiller ne répond pas pour l'instant, réessaie dans un moment.")
+        return
+
+    await repondre(ctx,(reponse or "Je n'ai pas de conseil à te donner cette fois.")[:2000])
 
 
 @tasks.loop(minutes=30)
