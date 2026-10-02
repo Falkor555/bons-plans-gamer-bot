@@ -80,7 +80,7 @@ async def aide(ctx):
         title="Commandes de Bon Plan Gamer",
         description="\n".join(
             [
-                "`!promo hades` · prix actuel d'un jeu sur Steam",
+                "`!promo hades` · prix d'un jeu sur Steam, comparé aux autres magasins",
                 "`!promos` · promotions Steam du moment",
                 "`!gratuit` · jeux offerts sur PC",
                 "`!alerte hades 10` · me prévenir quand le jeu passe à 10 € ou moins",

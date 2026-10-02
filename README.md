@@ -1,6 +1,6 @@
 # Bon Plan Gamer
 
-Bot Discord qui aide à trouver les bons plans jeux vidéo sur PC : prix et promotions Steam, jeux offerts, alertes de prix en message privé et recommandations par un LLM (Gemini).
+Bot Discord qui aide à trouver les bons plans jeux vidéo sur PC : prix et promotions Steam, comparaison avec les autres magasins, jeux offerts, alertes de prix en message privé et recommandations par un LLM (Gemini).
 
 Projet réalisé dans le cadre du module Python & IA.
 
