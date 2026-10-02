@@ -286,16 +286,18 @@ async def stop(ctx, numero: int):
 async def demander_conseil(ctx, *, question):
     try:
         async with ctx.typing():
-            promos = await asyncio.to_thread(steam.promos_du_moment)
+            promos = await asyncio.to_thread(itad.promos_du_moment)
             offerts = await asyncio.to_thread(gratuits.jeux_gratuits)
     except (requests.RequestException, KeyError, ValueError):
         await repondre(ctx,"Je n'arrive pas à récupérer les bons plans, réessaie dans un moment.")
         return
 
-    lignes = ["Promotions Steam :"]
-    for jeu in promos[:20]:
+    lignes = ["Promotions, tous magasins confondus :"]
+    for jeu in promos:
+        offre = jeu["deal"]
         lignes.append(
-            f"- {jeu['name']} : {jeu['final_price'] / 100:.2f} € (-{jeu['discount_percent']} %)"
+            f"- {jeu['title']} : {offre['price']['amount']:.2f} € "
+            f"(-{offre['cut']} %) chez {offre['shop']['name']}"
         )
     lignes.append("Jeux offerts :")
     for jeu in offerts[:10]:

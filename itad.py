@@ -35,8 +35,19 @@ def comparer(appid):
     }
 
 
+def promos_du_moment(nombre=60):
+    reponse = requests.get(
+        f"{URL}/deals/v2",
+        params={"key": CLE, "country": "FR", "limit": nombre, "sort": "-trending"},
+        timeout=10,
+    )
+    reponse.raise_for_status()
+    return reponse.json()["list"]
+
+
 if __name__ == "__main__":
-    comparaison = comparer(1145360)
-    for offre in comparaison["offres"]:
-        print(offre["shop"]["name"], offre["price"]["amount"], f"-{offre['cut']} %")
-    print("Plus bas historique :", comparaison["plus_bas"])
+    for jeu in promos_du_moment(10):
+        offre = jeu["deal"]
+        print(jeu["title"], "|", offre["shop"]["name"], "|", offre["price"]["amount"], f"-{offre['cut']} %")
+
+

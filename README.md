@@ -17,7 +17,7 @@ Le bot ne répond que dans le salon `bot-09`.
 | `!alerte hades 10` | Crée une alerte : le bot prévient quand le jeu passe à 10 € ou moins | fil |
 | `!mes-alertes` | Liste ses alertes, avec leur numéro | fil |
 | `!stop 3` | Supprime son alerte n°3 | fil |
-| `!conseil un jeu calme à moins de 10 €` | Recommande un à trois jeux parmi les bons plans du moment | fil |
+| `!conseil un jeu calme à moins de 10 €` | Recommande un à trois jeux parmi les promotions de tous les magasins et les jeux offerts | fil |
 
 Les réponses utiles à tous arrivent dans le salon. Les réponses personnelles arrivent dans un fil créé sous la commande, pour ne pas encombrer le salon.
 
@@ -84,8 +84,8 @@ Le bot ne doit tourner qu'à un seul endroit à la fois : lancé en local pendan
 | `steam.py` | Appels à l'API du magasin Steam : recherche d'un jeu, promotions, prix par identifiant |
 | `gratuits.py` | Appel à l'API GamerPower pour les jeux offerts |
 | `alertes.py` | Stockage des alertes dans une base SQLite (`alertes.db`, créée au premier lancement) |
-| `conseil.py` | Appel à Gemini pour la recommandation |
-| `itad.py` | Appel à l'API IsThereAnyDeal : prix d'un jeu dans les autres magasins et plus bas historique |
+| `conseil.py` | Appel à Gemini pour la recommandation, avec un modèle de secours |
+| `itad.py` | Appels à l'API IsThereAnyDeal : prix d'un jeu dans les autres magasins, plus bas historique, promotions du moment tous magasins |
 
 ### Alertes
 
@@ -93,13 +93,15 @@ Toutes les 30 minutes, et une fois au démarrage, le bot demande à Steam le pri
 
 ### Conseil
 
-Un LLM ne connaît pas les prix du jour et peut en inventer. Le bot récupère donc les promotions Steam et les jeux offerts, les transmet à Gemini avec la question du joueur, et lui impose par une consigne système de ne recommander que des jeux de cette liste.
+Un LLM ne connaît pas les prix du jour et peut en inventer. Le bot récupère donc les promotions du moment dans tous les magasins (IsThereAnyDeal) et les jeux offerts, les transmet à Gemini avec la question du joueur, et lui impose par une consigne système de ne recommander que des jeux de cette liste, avec leur prix et leur magasin.
+
+Si le modèle principal est surchargé, le bot essaie un second modèle plus léger avant d'abandonner.
 
 ## Limites
 
-- Seul `!promo` compare les magasins. Les promotions, les alertes et le conseil s'appuient sur les prix Steam, en euros (magasin français).
+- `!promo` et `!conseil` couvrent tous les magasins. `!promos` et les alertes s'appuient sur les prix Steam, en euros (magasin français).
 - `!promo` et `!alerte` retiennent le premier résultat de la recherche Steam : `!promo hades` peut renvoyer Hades II.
-- `!conseil` choisit parmi les promotions mises en avant par Steam et les jeux offerts, pas dans tout le catalogue.
+- `!conseil` choisit parmi les 60 promotions les plus en vue du moment et les jeux offerts, pas dans tout le catalogue.
 - Le salon est reconnu par son nom : un salon renommé n'est plus écouté.
 - Les fils sont visibles par tous les membres du salon.
 - Les commandes tapées à l'intérieur d'un fil sont ignorées.
