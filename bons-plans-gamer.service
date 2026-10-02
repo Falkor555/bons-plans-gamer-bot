@@ -1,0 +1,14 @@
+[Unit]
+Description=Bon Plan Gamer, bot Discord de bons plans jeux vidéo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/root/bons-plans-gamer-bot
+ExecStart=/root/bons-plans-gamer-bot/.venv/bin/python bot.py
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

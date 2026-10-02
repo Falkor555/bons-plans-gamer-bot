@@ -53,6 +53,28 @@ Côté Discord, le bot a besoin de :
 
 Le terminal affiche `Connecté en tant que …` quand le bot est prêt.
 
+## Déploiement
+
+Sur un serveur Linux, le bot tourne comme service systemd : il démarre avec le serveur et redémarre seul après un arrêt. Le fichier `bons-plans-gamer.service` suppose que le projet est dans `/root/bons-plans-gamer-bot`.
+
+Les commandes ci-dessous se lancent depuis le dossier du projet. `serveur` désigne l'hôte SSH.
+
+```powershell
+ssh serveur 'mkdir -p /root/bons-plans-gamer-bot'
+scp bot.py steam.py gratuits.py alertes.py conseil.py requirements.txt .env serveur:/root/bons-plans-gamer-bot/
+ssh serveur 'cd /root/bons-plans-gamer-bot && chmod 600 .env && python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt'
+scp bons-plans-gamer.service serveur:/etc/systemd/system/
+ssh serveur 'systemctl daemon-reload && systemctl enable --now bons-plans-gamer'
+```
+
+| Besoin | Commande |
+|---|---|
+| Voir ce que le bot affiche | `ssh serveur 'journalctl -u bons-plans-gamer -n 30 --no-pager'` |
+| Redémarrer après une mise à jour du code | `ssh serveur 'systemctl restart bons-plans-gamer'` |
+| Arrêter le bot | `ssh serveur 'systemctl stop bons-plans-gamer'` |
+
+Le bot ne doit tourner qu'à un seul endroit à la fois : lancé en local pendant que le service est actif, il répond en double.
+
 ## Fonctionnement
 
 | Fichier | Rôle |
