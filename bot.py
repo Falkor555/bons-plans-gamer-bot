@@ -4,7 +4,7 @@ import os
 
 import discord
 import requests
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 import alertes
@@ -29,6 +29,8 @@ async def uniquement_dans_le_salon(ctx):
 @bot.event
 async def on_ready():
     print(f"Connecté en tant que {bot.user}")
+    if not verifier_alertes.is_running():
+        verifier_alertes.start()
 
 
 @bot.event
@@ -36,6 +38,8 @@ async def on_command_error(ctx, erreur):
     if isinstance(erreur, commands.MissingRequiredArgument):
         exemple = ctx.command.usage or "hades"
         await ctx.send(f"Il manque une information. Exemple : `!{ctx.command} {exemple}`")
+    elif isinstance(erreur, commands.BadArgument):
+        await ctx.send(f"Je n'ai pas compris. Exemple : `!{ctx.command} {ctx.command.usage}`")
     elif isinstance(erreur, (commands.CommandNotFound, commands.CheckFailure)):
         return
     else:
@@ -187,6 +191,63 @@ async def alerte(ctx, *, texte):
         f"Alerte n°{numero} créée : je te préviens en message privé quand **{jeu['name']}** "
         f"passe à {prix_cible / 100:.2f} € ou moins (prix actuel : {actuel:.2f} €)."
     )
+
+
+@bot.command(name="mes-alertes")
+async def mes_alertes(ctx):
+    liste = alertes.lister(ctx.author.id)
+    if not liste:
+        await ctx.send("Tu n'as aucune alerte. Crées-en une avec `!alerte hades 10`.")
+        return
+
+    lignes = [
+        f"**n°{alerte['id']}** · {alerte['nom']} · {alerte['prix_cible'] / 100:.2f} € ou moins"
+        for alerte in liste
+    ]
+    encart = discord.Embed(
+        title=f"Alertes de {ctx.author.display_name}",
+        description="\n".join(lignes),
+        color=discord.Color.blue(),
+    )
+    encart.set_footer(text="Pour en supprimer une : !stop numéro")
+    await ctx.send(embed=encart)
+
+
+@bot.command(usage="3")
+async def stop(ctx, numero: int):
+    if alertes.supprimer(numero, ctx.author.id):
+        await ctx.send(f"Alerte n°{numero} supprimée.")
+    else:
+        await ctx.send(f"Tu n'as pas d'alerte n°{numero}. Vérifie avec `!mes-alertes`.")
+
+
+@tasks.loop(minutes=30)
+async def verifier_alertes():
+    liste = alertes.toutes()
+    if not liste:
+        return
+
+    appids = {alerte["appid"] for alerte in liste}
+    try:
+        prix = await asyncio.to_thread(steam.prix_actuels, appids)
+    except (requests.RequestException, KeyError, ValueError):
+        return
+
+    for alerte in liste:
+        actuel = prix.get(alerte["appid"])
+        if actuel is None or actuel > alerte["prix_cible"]:
+            continue
+        try:
+            utilisateur = await bot.fetch_user(alerte["user_id"])
+            await utilisateur.send(
+                f"Bon plan : **{alerte['nom']}** est à {actuel / 100:.2f} € sur Steam "
+                f"(ton alerte : {alerte['prix_cible'] / 100:.2f} € ou moins).\n"
+                f"https://store.steampowered.com/app/{alerte['appid']}"
+            )
+        except discord.HTTPException as erreur:
+            print(f"Alerte n°{alerte['id']} : message privé impossible ({erreur})")
+            continue
+        alertes.supprimer(alerte["id"], alerte["user_id"])
 
 
 bot.run(TOKEN)
